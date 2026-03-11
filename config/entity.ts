@@ -1,0 +1,174 @@
+import { ChefHat } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+
+export type FieldType =
+  | 'text'
+  | 'rich-text'
+  | 'number'
+  | 'currency'
+  | 'date'
+  | 'datetime'
+  | 'boolean'
+  | 'select'
+  | 'multi-select'
+  | 'tags'
+  | 'url'
+  | 'email'
+
+export interface EntityField {
+  name: string
+  label: string
+  type: FieldType
+  required: boolean
+  placeholder?: string
+  description?: string
+  options?: string[]
+  defaultValue?: string | number | boolean
+  showInList?: boolean
+  showInForm?: boolean
+}
+
+export interface EntityConfig {
+  name: string
+  pluralName: string
+  slug: string
+  icon: LucideIcon
+  fields: EntityField[]
+  titleField: string
+  descriptionField?: string
+  defaultSort: { field: string; direction: 'asc' | 'desc' }
+  allowCreate: boolean
+  allowEdit: boolean
+  allowDelete: boolean
+  allowExport: boolean
+}
+
+export const entityConfig: EntityConfig = {
+  name: 'Recipe',
+  pluralName: 'Recipes',
+  slug: 'recipes',
+  icon: ChefHat,
+
+  fields: [
+    {
+      name: 'recipe_name',
+      label: 'Recipe Name',
+      type: 'text',
+      required: true,
+      placeholder: 'e.g., Chicken Stir-fry',
+      showInList: true,
+      showInForm: true,
+    },
+    {
+      name: 'description',
+      label: 'Description',
+      type: 'rich-text',
+      required: false,
+      placeholder: 'A brief description of the recipe',
+      showInList: true,
+      showInForm: true,
+    },
+    {
+      name: 'ingredients',
+      label: 'Ingredients',
+      type: 'rich-text',
+      required: true,
+      placeholder: 'List all ingredients with quantities',
+      showInList: true,
+      showInForm: true,
+    },
+    {
+      name: 'dietary_restrictions',
+      label: 'Dietary Restrictions',
+      type: 'multi-select',
+      required: false,
+      options: ['keto', 'vegan', 'gluten_free', 'dairy_free', 'nut_free', 'vegetarian'],
+      showInList: true,
+      showInForm: true,
+    },
+    {
+      name: 'nutritional_breakdown',
+      label: 'Nutritional Breakdown',
+      type: 'rich-text',
+      required: false,
+      placeholder: 'Calories, macros, vitamins, etc.',
+      showInList: false,
+      showInForm: true,
+    },
+    {
+      name: 'prep_time',
+      label: 'Preparation Time (minutes)',
+      type: 'number',
+      required: false,
+      placeholder: 'e.g., 15',
+      showInList: false,
+      showInForm: true,
+    },
+    {
+      name: 'cook_time',
+      label: 'Cook Time (minutes)',
+      type: 'number',
+      required: false,
+      placeholder: 'e.g., 30',
+      showInList: false,
+      showInForm: true,
+    }
+  ],
+
+  titleField: 'recipe_name',
+  descriptionField: 'description',
+  defaultSort: { field: 'created_at', direction: 'desc' },
+
+  allowCreate: true,
+  allowEdit: true,
+  allowDelete: true,
+  allowExport: false,
+}
+
+export function getListFields(): EntityField[] {
+  return entityConfig.fields.filter((f) => f.showInList !== false)
+}
+
+export function getFormFields(): EntityField[] {
+  return entityConfig.fields.filter((f) => f.showInForm !== false)
+}
+
+export function fieldTypeToSql(type: FieldType): string {
+  const mapping: Record<FieldType, string> = {
+    text: 'TEXT',
+    'rich-text': 'TEXT',
+    number: 'INTEGER',
+    currency: 'NUMERIC(10,2)',
+    date: 'DATE',
+    datetime: 'TIMESTAMPTZ',
+    boolean: 'BOOLEAN DEFAULT FALSE',
+    select: 'TEXT',
+    'multi-select': 'TEXT[]',
+    tags: 'TEXT[]',
+    url: 'TEXT',
+    email: 'TEXT',
+  }
+  return mapping[type] || 'TEXT'
+}
+
+export function fieldTypeToZod(field: EntityField): string {
+  const base: Record<FieldType, string> = {
+    text: 'z.string()',
+    'rich-text': 'z.string()',
+    number: 'z.coerce.number()',
+    currency: 'z.coerce.number()',
+    date: 'z.string()',
+    datetime: 'z.string()',
+    boolean: 'z.boolean()',
+    select: `z.enum([${field.options?.map((o) => `'${o}'`).join(', ') || "'draft'"}])`,
+    'multi-select': 'z.array(z.string())',
+    tags: 'z.array(z.string())',
+    url: 'z.string().url()',
+    email: 'z.string().email()',
+  }
+  let schema = base[field.type] || 'z.string()'
+  if (!field.required) {
+    schema += '.optional()'
+  }
+  return schema
+}
